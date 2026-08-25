@@ -4,17 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#050518">
-<title>Stellar Dash - Endless Runner</title>
+<title>Neon Velocity - Endless Runner</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html, body { width:100%; height:100%; overflow:hidden; background:#03030d; font-family:"Segoe UI",Tahoma,sans-serif; touch-action:none; user-select:none; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#05061b; font-family:"Segoe UI",Tahoma,sans-serif; touch-action:none; user-select:none; }
   canvas { display:block; width:100%; height:100%; }
 
   #ui {
     position:absolute; top:max(12px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
     width:min(94%,680px); display:flex; justify-content:space-between; align-items:center; gap:10px;
     pointer-events:none; z-index:10; padding:10px 17px; color:#fff;
-    background:rgba(4,5,22,0.55); border:1px solid rgba(133,223,255,0.22); border-radius:50px;
+    background:linear-gradient(100deg,rgba(5,8,31,.82),rgba(42,8,72,.68)); border:1px solid rgba(63,238,255,.48); border-radius:18px;
     backdrop-filter:blur(8px); box-shadow:0 5px 25px rgba(0,0,0,0.35);
   }
   #score { min-width:110px; font-size:20px; font-weight:800; letter-spacing:0.5px; text-shadow:0 0 8px rgba(50,210,255,0.8); }
@@ -31,6 +31,8 @@
   }
   #speedIndicator { left:max(13px, env(safe-area-inset-left)); color:#aef5ff; }
   #powerupIndicator { right:max(13px, env(safe-area-inset-right)); display:none; color:#fff7a8; }
+  #boostIndicator { left:max(13px, env(safe-area-inset-left)); top:calc(max(12px, env(safe-area-inset-top)) + 103px); color:#ff8cf4; }
+  #pauseBtn { position:absolute; right:max(13px, env(safe-area-inset-right)); top:calc(max(12px, env(safe-area-inset-top)) + 102px); z-index:30; width:42px; height:35px; color:#fff; font-size:17px; border:1px solid rgba(91,243,255,.5); border-radius:11px; background:rgba(8,8,35,.7); box-shadow:0 0 16px rgba(30,213,255,.2); cursor:pointer; }
 
   #message {
     position:absolute; left:50%; top:29%; z-index:20; color:#fff; font-size:clamp(20px,5vw,36px);
@@ -122,15 +124,17 @@
 </div>
 <div id="speedIndicator" class="status-pill">SPEED 1.00×</div>
 <div id="powerupIndicator" class="status-pill"></div>
+<div id="boostIndicator" class="status-pill">BOOST ▰▰▰▰▰</div>
+<button id="pauseBtn" aria-label="Pause game">Ⅱ</button>
 <div id="message"></div>
 
 <div id="startScreen" class="overlay">
-  <h1>⚡ STELLAR DASH ⚡</h1>
-  <div class="tagline">Run far. Collect coins. Survive the void!</div>
+  <h1>⚡ NEON VELOCITY ⚡</h1>
+  <div class="tagline">Own the midnight streets. Collect energy. Outrun the city.</div>
   <div class="controls-help">
     <span>← →</span> or <span>A D</span>: Move Lane &nbsp;•&nbsp; <span>↑ / W / Space</span>: Jump<br>
     <span>↓ / S</span>: Slide &nbsp;•&nbsp; Jump gaps or you'll <span>fall off the track!</span><br>
-    Collect <span>coins</span> and grab 🛡 shield, 🧲 magnet, ⚡ boost, ✳ multiplier power-ups!
+    Collect <span>gold + energy coins</span> and grab 🛡 shield, 🧲 magnet, ⚡ boost, ✳ multiplier power-ups!
   </div>
   <button class="btn-primary" id="startBtn">START RUN</button>
 </div>
@@ -224,7 +228,7 @@ const POWER_LABELS = { shield:'🛡 SHIELD', magnet:'🧲 MAGNET', speedBoost:'�
 const POWER_COLORS = { shield:'#7fe9ff', magnet:'#ff9ff2', speedBoost:'#ffe15c', multiplier:'#b9ff7f' };
 
 /* ---------------- GAME STATE ---------------- */
-let state = 'start'; // start | playing | gameover
+let state = 'start'; // start | playing | paused | gameover
 let distance = 0, scoreFloat = 0, score = 0, coinCount = 0, health = 3;
 let gameSpeed = BASE_SPEED;
 let spawnTimer = 1.0;
@@ -283,6 +287,8 @@ const heartsEl = document.getElementById('health');
 const speedEl = document.getElementById('speedIndicator');
 const powerEl = document.getElementById('powerupIndicator');
 const messageEl = document.getElementById('message');
+const boostEl = document.getElementById('boostIndicator');
+const pauseBtn = document.getElementById('pauseBtn');
 
 function updateScoreUI(){
   scoreEl.textContent = 'SCORE ' + score;
@@ -294,6 +300,8 @@ function updateHearts(){
 }
 function updateSpeedUI(){
   speedEl.textContent = 'SPEED ' + (gameSpeed/BASE_SPEED).toFixed(2) + '×';
+  const filled = Math.max(1, Math.min(5, Math.ceil((gameSpeed / MAX_SPEED) * 5)));
+  boostEl.textContent = 'BOOST ' + '▰'.repeat(filled) + '▱'.repeat(5-filled);
 }
 function showPowerupUI(){
   powerEl.style.display = 'block';
@@ -345,10 +353,20 @@ function doSlide(){
   }
 }
 
+function togglePause(){
+  if(state === 'playing'){
+    state = 'paused'; pauseBtn.textContent = '▶'; showMessage('PAUSED', '#65efff');
+  } else if(state === 'paused'){
+    state = 'playing'; pauseBtn.textContent = 'Ⅱ'; showMessage('RUN!', '#ff7be7');
+  }
+}
+pauseBtn.addEventListener('click', togglePause);
+
 document.addEventListener('keydown', function(e){
   const keys = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','a','A','d','D','w','W','s','S'];
   if(keys.indexOf(e.key) !== -1) e.preventDefault();
   if(e.repeat) return;
+  if(e.key === 'Escape' || e.key === 'p' || e.key === 'P'){ togglePause(); return; }
   switch(e.key){
     case 'ArrowLeft': case 'a': case 'A': moveLeft(); break;
     case 'ArrowRight': case 'd': case 'D': moveRight(); break;
@@ -730,9 +748,10 @@ function project(laneVal, z){
 function drawBackground(){
   const w = canvas.width, h = canvas.height;
   const grad = ctx.createLinearGradient(0,0,0,h);
-  grad.addColorStop(0, '#0a0a2a');
-  grad.addColorStop(0.4, '#150a33');
-  grad.addColorStop(1, '#03030d');
+  grad.addColorStop(0, '#02051c');
+  grad.addColorStop(0.42, '#171041');
+  grad.addColorStop(0.72, '#3b0d55');
+  grad.addColorStop(1, '#05051a');
   ctx.fillStyle = grad;
   ctx.fillRect(0,0,w,h);
 
@@ -744,6 +763,24 @@ function drawBackground(){
     ctx.arc(s.x*w, s.y*h, s.size*DPR, 0, Math.PI*2);
     ctx.fill();
   });
+  // Hazy neon skyline, parallax layers.
+  const horizon = h*.37;
+  const buildings = [
+    [0,.17,.17,'#14244e'],[.13,.11,.27,'#241447'],[.23,.19,.16,'#17365a'],[.35,.1,.31,'#32205d'],
+    [.48,.14,.22,'#182f58'],[.61,.09,.32,'#421550'],[.71,.18,.18,'#173c58'],[.83,.12,.27,'#2d1761'],[.93,.16,.19,'#15365d']
+  ];
+  buildings.forEach((b,i) => {
+    const x=b[0]*w, bw=b[1]*w, bh=b[2]*h, y=horizon-bh;
+    ctx.fillStyle=b[3]; ctx.fillRect(x,y,bw,bh);
+    ctx.strokeStyle=i%2?'rgba(255,65,211,.5)':'rgba(46,225,255,.5)'; ctx.lineWidth=DPR;
+    ctx.strokeRect(x,y,bw,bh);
+    for(let wy=y+12*DPR;wy<horizon-4*DPR;wy+=14*DPR){
+      for(let wx=x+7*DPR;wx<x+bw-4*DPR;wx+=12*DPR){
+        if((Math.floor(wx+wy+i)%3)!==0){ ctx.fillStyle=i%2?'rgba(255,91,226,.65)':'rgba(86,235,255,.65)'; ctx.fillRect(wx,wy,3*DPR,4*DPR); }
+      }
+    }
+  });
+  ctx.fillStyle='rgba(74,217,255,.06)'; ctx.fillRect(0,horizon-8*DPR,w,28*DPR);
 }
 
 function drawRoad(){
@@ -752,8 +789,9 @@ function drawRoad(){
   const farL = project(-1.55, 0), farR = project(1.55, 0);
 
   const roadGrad = ctx.createLinearGradient(0, farL.y, 0, nearL.y);
-  roadGrad.addColorStop(0, '#1b1c46');
-  roadGrad.addColorStop(1, '#302a5e');
+  roadGrad.addColorStop(0, '#111735');
+  roadGrad.addColorStop(.55, '#17152d');
+  roadGrad.addColorStop(1, '#090b1c');
   ctx.fillStyle = roadGrad;
   ctx.beginPath();
   ctx.moveTo(farL.x, farL.y);
@@ -763,14 +801,24 @@ function drawRoad(){
   ctx.closePath();
   ctx.fill();
 
-  // glowing edges
-  ctx.strokeStyle = 'rgba(120,220,255,0.55)';
+  // glowing guard rails
+  ctx.strokeStyle = 'rgba(64,239,255,0.8)';
   ctx.lineWidth = 3*DPR;
   ctx.shadowColor = 'rgba(120,220,255,0.8)';
   ctx.shadowBlur = 10*DPR;
   ctx.beginPath(); ctx.moveTo(farL.x, farL.y); ctx.lineTo(nearL.x, nearL.y); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(farR.x, farR.y); ctx.lineTo(nearR.x, nearR.y); ctx.stroke();
   ctx.shadowBlur = 0;
+
+  // reflective wet-road bands and roadside light posts.
+  for(let z=.06; z<1; z+=.09){
+    const a=project(-1.48,z), b=project(1.48,z);
+    ctx.strokeStyle='rgba(198,50,255,'+(0.05+.11*z)+')'; ctx.lineWidth=Math.max(1,DPR*2*z);
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    if(z>.18){
+      [-1.7,1.7].forEach(lane=>{ const p=project(lane,z); ctx.fillStyle='rgba(51,239,255,.85)'; ctx.shadowColor='#19eaff';ctx.shadowBlur=8*DPR;ctx.fillRect(p.x-1.5*DPR,p.y-14*DPR*z,3*DPR,14*DPR*z);ctx.shadowBlur=0; });
+    }
+  }
 
   // lane dividers (scrolling dashes)
   const offset = (distance*1.4) % 0.2;
@@ -1009,6 +1057,42 @@ function drawPlayer(){
   ctx.globalAlpha = 1;
 }
 
+// High-detail neon runner: shaded hoodie, articulated limbs, hands, face and glowing sneakers.
+function drawPlayer(){
+  const p=project(player.currentLaneVal,.9), s=p.scale*1.32, u=DPR*s;
+  let x=p.x, y=p.y+player.jumpY*22*u;
+  const swing=player.isJumping?.18:Math.sin(player.runPhase)*.76;
+  ctx.save(); ctx.translate(x,y); if(player.falling)ctx.rotate(player.fallRot);
+  if(player.invuln>0) ctx.globalAlpha=(Math.floor(performance.now()/85)%2)? .45:1;
+  ctx.shadowColor='rgba(36,212,255,.8)'; ctx.shadowBlur=15*u;
+  // projected ground shadow
+  ctx.fillStyle='rgba(0,0,0,.38)';ctx.beginPath();ctx.ellipse(0,5*u,26*u,6*u,0,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  const hip=-34*u, shoulder=-76*u, headY=-101*u;
+  function limb(ax,ay,bx,by,cx,cy,color,width){ctx.strokeStyle=color;ctx.lineWidth=width*u;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.lineTo(cx,cy);ctx.stroke();}
+  // rear and front legs, knee joints and black technical pants.
+  limb(-8*u,hip,-10*u+14*u*swing,-16*u, -13*u+21*u*swing,4*u,'#10192b',12);
+  limb(8*u,hip,9*u-14*u*swing,-15*u, 12*u-21*u*swing,4*u,'#17243a',13);
+  // cyan sole glow and red-white sneaker accents.
+  [-13*u+21*u*swing,12*u-21*u*swing].forEach((foot,i)=>{ctx.fillStyle='#e9f6ff';ctx.fillRect(foot-8*u,1*u,17*u,6*u);ctx.fillStyle='#35e8ff';ctx.shadowColor='#35e8ff';ctx.shadowBlur=10*u;ctx.fillRect(foot-7*u,6*u,16*u,2.5*u);ctx.shadowBlur=0;ctx.fillStyle=i?'#ff557d':'#526dff';ctx.fillRect(foot-5*u,2*u,8*u,3*u);});
+  // hoodie torso with dimensional side shade and luminous trim.
+  const g=ctx.createLinearGradient(-16*u,shoulder,16*u,hip);g.addColorStop(0,'#38bffc');g.addColorStop(.55,'#1267d7');g.addColorStop(1,'#082c83');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(-17*u,shoulder+8*u);ctx.lineTo(17*u,shoulder+8*u);ctx.lineTo(13*u,hip);ctx.lineTo(-13*u,hip);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(111,239,255,.9)';ctx.lineWidth=1.6*u;ctx.beginPath();ctx.moveTo(0,shoulder+10*u);ctx.lineTo(0,hip-4*u);ctx.stroke();
+  // arms, bent in natural opposing run cycle; hands are visible.
+  limb(-15*u,shoulder+13*u,-27*u-12*u*swing,-52*u,-19*u-18*u*swing,-29*u,'#1d7fdf',9);
+  limb(15*u,shoulder+13*u,27*u+12*u*swing,-52*u,19*u+18*u*swing,-29*u,'#268fe9',9);
+  [[-19*u-18*u*swing,-29*u],[19*u+18*u*swing,-29*u]].forEach(h=>{ctx.fillStyle='#bf7b5b';ctx.beginPath();ctx.arc(h[0],h[1],5.2*u,0,Math.PI*2);ctx.fill();});
+  // neck, face and natural hair silhouette.
+  ctx.fillStyle='#b97455';ctx.fillRect(-5*u,headY+18*u,10*u,10*u);
+  const face=ctx.createLinearGradient(-12*u,headY,12*u,headY+24*u);face.addColorStop(0,'#e9af89');face.addColorStop(1,'#a85c44');ctx.fillStyle=face;ctx.beginPath();ctx.ellipse(0,headY+9*u,13*u,16*u,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#111629';ctx.beginPath();ctx.arc(0,headY+2*u,13*u,Math.PI,Math.PI*2);ctx.lineTo(12*u,headY+9*u);ctx.lineTo(-12*u,headY+9*u);ctx.fill();
+  ctx.fillStyle='#d9f9ff';ctx.fillRect(-7*u,headY+10*u,3*u,1.5*u);ctx.fillRect(4*u,headY+10*u,3*u,1.5*u);
+  ctx.strokeStyle='#743b32';ctx.lineWidth=1*u;ctx.beginPath();ctx.moveTo(-3*u,headY+20*u);ctx.lineTo(3*u,headY+20*u);ctx.stroke();
+  // hood depth and rim light.
+  ctx.strokeStyle='#69f3ff';ctx.lineWidth=2*u;ctx.shadowColor='#41dfff';ctx.shadowBlur=9*u;ctx.beginPath();ctx.arc(0,shoulder+7*u,17*u,Math.PI,0);ctx.stroke();ctx.shadowBlur=0;
+  if(activePower.type==='speedBoost'){ctx.strokeStyle='rgba(255,83,228,.65)';ctx.lineWidth=3*u;for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo(-25*u-i*7*u,-65*u-i*10*u);ctx.lineTo(-55*u-i*14*u,-65*u-i*10*u);ctx.stroke();}}
+  ctx.restore();
+}
+
 function render(){
   const w = canvas.width, h = canvas.height;
   ctx.clearRect(0,0,w,h);
@@ -1054,6 +1138,7 @@ document.getElementById('startBtn').addEventListener('click', function(){
   ensureAudio();
   resetGame();
   state = 'playing';
+  pauseBtn.textContent = 'Ⅱ';
   document.getElementById('startScreen').style.display = 'none';
   document.getElementById('gameOver').style.display = 'none';
 });
@@ -1061,6 +1146,7 @@ document.getElementById('restartBtn').addEventListener('click', function(){
   ensureAudio();
   resetGame();
   state = 'playing';
+  pauseBtn.textContent = 'Ⅱ';
   document.getElementById('gameOver').style.display = 'none';
 });
 
