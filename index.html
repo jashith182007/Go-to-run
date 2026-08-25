@@ -907,6 +907,28 @@ function drawObstacle(e){
   }
 }
 
+// Traffic-oriented obstacle skins: cars, freight trucks and chevron barriers.
+function drawObstacle(e){
+  if(e.type==='pit'){
+    const a=project(-1.08,e.z),b=project(1.08,e.z),af=project(-1.08,Math.max(0,e.z-.075)),bf=project(1.08,Math.max(0,e.z-.075));
+    ctx.fillStyle='#030312';ctx.beginPath();ctx.moveTo(af.x,af.y);ctx.lineTo(bf.x,bf.y);ctx.lineTo(b.x,b.y);ctx.lineTo(a.x,a.y);ctx.closePath();ctx.fill();ctx.strokeStyle='#ff45db';ctx.lineWidth=2*DPR;ctx.stroke();return;
+  }
+  const p=project(e.lane,e.z),u=DPR*p.scale,wide=62*u, tall=78*u;
+  ctx.save();ctx.translate(p.x,p.y);
+  if(e.type==='full'){
+    // Boxy truck seen from the rear, with brake lights reflected on wet road.
+    ctx.fillStyle='#1a2440';ctx.strokeStyle='#60ecff';ctx.lineWidth=2*u;ctx.shadowColor='#2ee7ff';ctx.shadowBlur=9*u;ctx.fillRect(-wide*.55,-tall,wide*1.1,tall);ctx.strokeRect(-wide*.55,-tall,wide*1.1,tall);ctx.shadowBlur=0;
+    ctx.fillStyle='#263353';ctx.fillRect(-wide*.42,-tall*.82,wide*.84,tall*.36);ctx.fillStyle='#ff3e6d';[-wide*.32,wide*.32].forEach(x=>{ctx.shadowColor='#ff3e6d';ctx.shadowBlur=10*u;ctx.fillRect(x-5*u,-10*u,10*u,5*u);});ctx.shadowBlur=0;
+  } else if(e.type==='low'){
+    // Road barrier with illuminated chevrons.
+    ctx.fillStyle='#25213a';ctx.strokeStyle='#f15be7';ctx.lineWidth=2*u;ctx.shadowColor='#f15be7';ctx.shadowBlur=10*u;ctx.fillRect(-wide*.64,-tall*.42,wide*1.28,tall*.42);ctx.strokeRect(-wide*.64,-tall*.42,wide*1.28,tall*.42);ctx.shadowBlur=0;ctx.fillStyle='#fff49a';for(let i=-.38;i<.4;i+=.25){ctx.beginPath();ctx.moveTo(i*wide,-tall*.35);ctx.lineTo((i+.14)*wide,-tall*.2);ctx.lineTo(i*wide,-tall*.05);ctx.closePath();ctx.fill();}
+  } else {
+    // Elevated crystal gate: slide below it.
+    ctx.strokeStyle='#55f4ff';ctx.lineWidth=6*u;ctx.shadowColor='#55f4ff';ctx.shadowBlur=12*u;ctx.beginPath();ctx.moveTo(-wide*.52,0);ctx.lineTo(-wide*.52,-tall*.72);ctx.lineTo(wide*.52,-tall*.72);ctx.lineTo(wide*.52,0);ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='#b44eff';ctx.fillRect(-wide*.6,-tall*.84,wide*1.2,10*u);
+  }
+  ctx.restore();
+}
+
 function drawCoin(c){
   if(c.delay > 0) return;
   if(c.collected) return;
@@ -1057,6 +1079,14 @@ function drawPlayer(){
   ctx.globalAlpha = 1;
 }
 
+function drawCityDetails(){
+  const w=canvas.width,h=canvas.height,t=performance.now()/1000;
+  // Neon billboards and rain streaks, styled after a dense midnight arcade district.
+  const signs=[['RUN',.15,.42,'#ff46d4'],['NEON',.78,.23,'#fa54ee'],['KEEP',.9,.39,'#38e9ff']];
+  signs.forEach((s,i)=>{const x=w*s[1],y=h*s[2],bw=42*DPR,bh=27*DPR;ctx.save();ctx.translate(x,y);if(i===1)ctx.rotate(-Math.PI/2);ctx.fillStyle='rgba(18,8,42,.78)';ctx.strokeStyle=s[3];ctx.lineWidth=1.5*DPR;ctx.shadowColor=s[3];ctx.shadowBlur=12*DPR;ctx.fillRect(-bw/2,-bh/2,bw,bh);ctx.strokeRect(-bw/2,-bh/2,bw,bh);ctx.shadowBlur=0;ctx.fillStyle='#fff';ctx.font='800 '+(9*DPR)+'px Segoe UI';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(s[0],0,0);ctx.restore();});
+  ctx.strokeStyle='rgba(181,223,255,.14)';ctx.lineWidth=DPR;for(let i=0;i<35;i++){const x=((i*89+t*36)%w);const y=(i*47)%h*.78;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-10*DPR,y+22*DPR);ctx.stroke();}
+}
+
 // High-detail neon runner: shaded hoodie, articulated limbs, hands, face and glowing sneakers.
 function drawPlayer(){
   const p=project(player.currentLaneVal,.9), s=p.scale*1.32, u=DPR*s;
@@ -1097,6 +1127,7 @@ function render(){
   const w = canvas.width, h = canvas.height;
   ctx.clearRect(0,0,w,h);
   drawBackground();
+  drawCityDetails();
 
   ctx.save();
   if(shake.time > 0){
